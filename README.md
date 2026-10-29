@@ -4,12 +4,16 @@ Un pipeline de données sur Databricks qui transforme les fichiers bruts de ponc
 
 Le projet suit l'architecture médaillon. Le bronze charge les CSV avec Auto Loader, le silver type et contrôle les données en PySpark, le gold construit le modèle en étoile en SQL. Un job Lakeflow enchaîne les trois couches dès qu'un nouveau fichier mensuel arrive.
 
+![Le tableau de bord publié dans Databricks](docs/tableau_de_bord.png)
+
 ## Ce que montrent les données
 
 - **91,9 % des trains arrivent à leur terminus avec moins de 6 minutes de retard**, sur 208 365 trains : 92,8 % en août et 91,1 % en septembre. Le retard moyen au terminus est de 2,04 minutes.
 - **Sur la jonction Nord-Midi, à Bruxelles, les trains perdent du temps.** 90,6 % des arrivées y sont à l'heure, contre 93,4 % sur le reste du réseau. Entre deux points, un train y perd 1 seconde en moyenne, alors qu'il en regagne 5 ailleurs. À quai, il perd 11 secondes, contre 6 ailleurs.
 - **Huit des quinze points les moins ponctuels sont en province de Liège.** Le moins ponctuel, Hergenrath, juste avant la frontière allemande, n'a que 69 % d'arrivées à l'heure.
-- **Le retard grandit sur les longs trajets.** Il reste autour de 1,6 minute jusqu'au 12e point du trajet, puis monte vers 2 minutes.
+- **En semaine, la pointe du soir pèse plus que celle du matin.** Vers 17 h, la ponctualité descend sous 91 %, contre environ 95 % le week-end à la même heure.
+- **Les trains internationaux sont les moins ponctuels** : environ 70 % d'arrivées à l'heure en fin de parcours belge, contre 95 % pour les omnibus.
+- **Le retard grandit sur les longs trajets.** Il reste autour de 1,6 minute jusqu'au 12e point du trajet, puis dépasse 2 minutes à partir du 17e.
 
 ## Architecture
 
@@ -23,7 +27,7 @@ flowchart LR
     gold --> dashboard["Tableau de bord AI/BI"]
 ```
 
-Le job `ponctualite_trains_belges` lance les notebooks 02, 03 et 04 l'un après l'autre, puis rafraîchit le tableau de bord. Il démarre dès qu'un fichier arrive dans le volume, et envoie un mail en cas d'échec. Tout tourne sur le calcul serverless, en mode standard : pour un traitement mensuel, quelques minutes de démarrage ne comptent pas, et ce mode consomme moins.
+Le job `ponctualite_trains_belges` lance les notebooks 02, 03 et 04 l'un après l'autre, puis rafraîchit le tableau de bord et l'envoie en PDF par mail. Il démarre dès qu'un fichier arrive dans le volume, et prévient par mail en cas d'échec. Tout tourne sur le calcul serverless, en mode standard : pour un traitement mensuel, quelques minutes de démarrage ne comptent pas, et ce mode consomme moins. Sa définition, exportée depuis Databricks, se trouve dans `job/ponctualite_trains_belges.yml`.
 
 ## Les données
 
@@ -143,7 +147,7 @@ Le fichier `dashboard/ponctualite_trains_belges.lvdash.json` s'importe dans Data
    ```
 
 3. Télécharger des fichiers mensuels depuis l'onglet « Tableau » du jeu de données d'Infrabel, et les déposer dans le volume `bronze.fichiers`.
-4. Cloner ce dépôt dans un dossier Git du workspace, puis lancer les notebooks 02, 03 et 04 dans l'ordre, ou créer le job décrit plus haut.
+4. Cloner ce dépôt dans un dossier Git du workspace, puis lancer les notebooks 02, 03 et 04 dans l'ordre, ou créer le job décrit dans `job/ponctualite_trains_belges.yml`.
 5. Importer le tableau de bord depuis le fichier `.lvdash.json`.
 
 ## Limites
@@ -163,6 +167,10 @@ notebooks/
   04_gold.sql          modèle en étoile, contrôles et vues
 dashboard/
   ponctualite_trains_belges.lvdash.json
+job/
+  ponctualite_trains_belges.yml
+docs/
+  tableau_de_bord.png
 ```
 
 Projet réalisé par Astrit Mustafa. Portfolio : [astreetm.github.io](https://astreetm.github.io).

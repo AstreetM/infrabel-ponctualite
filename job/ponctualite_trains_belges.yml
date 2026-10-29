@@ -1,0 +1,51 @@
+# Définition du job, exportée depuis Databricks (menu « Switch to code version (YAML) »).
+# Deux valeurs propres au workspace ont été remplacées :
+#   - ${workspace.current_user.userName} : l'adresse de l'utilisateur Databricks ;
+#   - <id-du-tableau-de-bord> : l'identifiant du tableau de bord publié.
+resources:
+  jobs:
+    ponctualite_trains_belges:
+      name: ponctualite_trains_belges
+      email_notifications:
+        on_failure:
+          - ${workspace.current_user.userName}
+      trigger:
+        pause_status: UNPAUSED
+        file_arrival:
+          url: /Volumes/workspace/bronze/fichiers/
+          wait_after_last_change_seconds: 120
+      tasks:
+        - task_key: bronze
+          notebook_task:
+            notebook_path: /Workspace/Users/${workspace.current_user.userName}/infrabel-ponctualite/notebooks/02_bronze
+            source: WORKSPACE
+        - task_key: silver
+          depends_on:
+            - task_key: bronze
+          notebook_task:
+            notebook_path: /Workspace/Users/${workspace.current_user.userName}/infrabel-ponctualite/notebooks/03_silver
+            source: WORKSPACE
+        - task_key: gold
+          depends_on:
+            - task_key: silver
+          notebook_task:
+            notebook_path: /Workspace/Users/${workspace.current_user.userName}/infrabel-ponctualite/notebooks/04_gold
+            source: WORKSPACE
+          environment_key: Default
+        - task_key: tableau_de_bord
+          depends_on:
+            - task_key: gold
+          dashboard_task:
+            subscription:
+              subscribers:
+                - user_name: ${workspace.current_user.userName}
+              attachment:
+                page_attachment: {}
+            dashboard_id: "<id-du-tableau-de-bord>"
+      queue:
+        enabled: true
+      environments:
+        - environment_key: Default
+          spec:
+            environment_version: "6"
+      performance_target: STANDARD
