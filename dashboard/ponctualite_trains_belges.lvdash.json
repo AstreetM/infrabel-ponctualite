@@ -1,0 +1,620 @@
+{
+  "datasets": [
+    {
+      "name": "d1a00001",
+      "displayName": "Chiffres clés",
+      "queryLines": [
+        "SELECT\n",
+        "  round(100 * avg(CASE WHEN est_terminus THEN CAST(a_l_heure AS DOUBLE) END), 1) AS pct_a_l_heure_terminus,\n",
+        "  count_if(est_terminus AND a_l_heure IS NOT NULL) AS trains_au_terminus,\n",
+        "  round(avg(CASE WHEN est_terminus THEN retard_arrivee_min END), 2) AS retard_moyen_terminus_min,\n",
+        "  count(*) AS passages\n",
+        "FROM workspace.gold.fait_passage"
+      ]
+    },
+    {
+      "name": "d1a00002",
+      "displayName": "Ponctualité par jour",
+      "queryLines": [
+        "SELECT date_jour, nom_jour, type_jour, trains, pct_a_l_heure, retard_moyen_min\n",
+        "FROM workspace.gold.v_ponctualite_jour\n",
+        "ORDER BY date_jour"
+      ]
+    },
+    {
+      "name": "d1a00003",
+      "displayName": "Points les moins ponctuels",
+      "queryLines": [
+        "SELECT nom_nl, arrivees, pct_a_l_heure, retard_moyen_min, retard_median_min\n",
+        "FROM workspace.gold.v_ponctualite_gare\n",
+        "WHERE arrivees >= 500\n",
+        "ORDER BY pct_a_l_heure\n",
+        "LIMIT 15"
+      ]
+    },
+    {
+      "name": "d1a00004",
+      "displayName": "Ponctualité par heure",
+      "queryLines": [
+        "SELECT heure, type_jour, arrivees, pct_a_l_heure, retard_moyen_min\n",
+        "FROM workspace.gold.v_ponctualite_heure\n",
+        "WHERE arrivees >= 1000\n",
+        "ORDER BY heure"
+      ]
+    },
+    {
+      "name": "d1a00005",
+      "displayName": "Ponctualité par type de train",
+      "queryLines": [
+        "SELECT type_train, sum(trains) AS trains,\n",
+        "  round(sum(pct_a_l_heure * trains) / sum(trains), 2) AS pct_a_l_heure\n",
+        "FROM workspace.gold.v_ponctualite_relation\n",
+        "GROUP BY type_train\n",
+        "ORDER BY pct_a_l_heure"
+      ]
+    },
+    {
+      "name": "d1a00006",
+      "displayName": "Jonction Nord-Midi",
+      "queryLines": [
+        "SELECT zone, 'entre deux points' AS moment, round(retard_pris_en_ligne_min * 60, 1) AS secondes\n",
+        "FROM workspace.gold.v_jonction_nord_midi\n",
+        "UNION ALL\n",
+        "SELECT zone, 'à quai' AS moment, round(retard_pris_a_quai_min * 60, 1) AS secondes\n",
+        "FROM workspace.gold.v_jonction_nord_midi"
+      ]
+    },
+    {
+      "name": "d1a00007",
+      "displayName": "Retard le long du trajet",
+      "queryLines": [
+        "SELECT rang_arret, arrivees, retard_moyen_min, retard_pris_en_ligne_min, retard_pris_a_quai_min\n",
+        "FROM workspace.gold.v_propagation\n",
+        "WHERE rang_arret >= 2\n",
+        "ORDER BY rang_arret"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "p1a00001",
+      "displayName": "Ponctualité",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "t1a00001",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# La ponctualité des trains belges\n",
+                "Août et septembre 2026, à partir des données brutes d'Infrabel traitées dans Databricks (bronze, silver, gold). ",
+                "Un train est à l'heure s'il arrive avec moins de 6 minutes de retard, la règle d'Infrabel."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "c1a00001",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "d1a00001",
+                  "fields": [
+                    {
+                      "name": "pct_a_l_heure_terminus",
+                      "expression": "`pct_a_l_heure_terminus`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "pct_a_l_heure_terminus",
+                  "displayName": "% à l'heure"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Trains à l'heure au terminus (%)"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "c1a00002",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "d1a00001",
+                  "fields": [
+                    {
+                      "name": "trains_au_terminus",
+                      "expression": "`trains_au_terminus`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "trains_au_terminus",
+                  "displayName": "Trains"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Trains arrivés au terminus"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "c1a00003",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "d1a00001",
+                  "fields": [
+                    {
+                      "name": "retard_moyen_terminus_min",
+                      "expression": "`retard_moyen_terminus_min`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "retard_moyen_terminus_min",
+                  "displayName": "Minutes"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Retard moyen au terminus (min)"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "w1a00001",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "d1a00002",
+                  "fields": [
+                    {
+                      "name": "date_jour",
+                      "expression": "`date_jour`"
+                    },
+                    {
+                      "name": "pct_a_l_heure",
+                      "expression": "`pct_a_l_heure`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "date_jour",
+                  "scale": {
+                    "type": "temporal"
+                  },
+                  "displayName": "Jour"
+                },
+                "y": {
+                  "fieldName": "pct_a_l_heure",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "% à l'heure"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Ponctualité au terminus, jour par jour"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "w1a00002",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "d1a00003",
+                  "fields": [
+                    {
+                      "name": "pct_a_l_heure",
+                      "expression": "`pct_a_l_heure`"
+                    },
+                    {
+                      "name": "nom_nl",
+                      "expression": "`nom_nl`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "pct_a_l_heure",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "% à l'heure"
+                },
+                "y": {
+                  "fieldName": "nom_nl",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "value"
+                    }
+                  },
+                  "displayName": "Point du réseau"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Les 15 points les moins ponctuels",
+                "showDescription": true,
+                "description": "Points avec au moins 500 arrivées sur la période"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 11,
+            "width": 3,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "w1a00003",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "d1a00004",
+                  "fields": [
+                    {
+                      "name": "heure",
+                      "expression": "`heure`"
+                    },
+                    {
+                      "name": "pct_a_l_heure",
+                      "expression": "`pct_a_l_heure`"
+                    },
+                    {
+                      "name": "type_jour",
+                      "expression": "`type_jour`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "heure",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Heure prévue"
+                },
+                "y": {
+                  "fieldName": "pct_a_l_heure",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "% à l'heure"
+                },
+                "color": {
+                  "fieldName": "type_jour",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "jour ouvrable",
+                        "color": "#2a78d6"
+                      },
+                      {
+                        "value": "week-end ou férié",
+                        "color": "#eb6834"
+                      }
+                    ]
+                  },
+                  "displayName": "Type de jour"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Ponctualité selon l'heure"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 11,
+            "width": 3,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "w1a00004",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "d1a00005",
+                  "fields": [
+                    {
+                      "name": "type_train",
+                      "expression": "`type_train`"
+                    },
+                    {
+                      "name": "pct_a_l_heure",
+                      "expression": "`pct_a_l_heure`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "pct_a_l_heure",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "% à l'heure"
+                },
+                "y": {
+                  "fieldName": "type_train",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "value"
+                    }
+                  },
+                  "displayName": "Type de train"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Ponctualité au terminus par type de train"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 19,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "w1a00005",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "d1a00006",
+                  "fields": [
+                    {
+                      "name": "moment",
+                      "expression": "`moment`"
+                    },
+                    {
+                      "name": "secondes",
+                      "expression": "`secondes`"
+                    },
+                    {
+                      "name": "zone",
+                      "expression": "`zone`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "moment",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Moment"
+                },
+                "y": {
+                  "fieldName": "secondes",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Secondes perdues"
+                },
+                "color": {
+                  "fieldName": "zone",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "jonction Nord-Midi",
+                        "color": "#2a78d6"
+                      },
+                      {
+                        "value": "reste du réseau",
+                        "color": "#898781"
+                      }
+                    ]
+                  },
+                  "displayName": "Zone"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Jonction Nord-Midi : secondes perdues par passage",
+                "showDescription": true,
+                "description": "Une valeur négative veut dire que le train rattrape du retard"
+              },
+              "mark": {
+                "layout": "group"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 19,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "w1a00006",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "d1a00007",
+                  "fields": [
+                    {
+                      "name": "rang_arret",
+                      "expression": "`rang_arret`"
+                    },
+                    {
+                      "name": "retard_moyen_min",
+                      "expression": "`retard_moyen_min`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "rang_arret",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Rang du point dans le trajet"
+                },
+                "y": {
+                  "fieldName": "retard_moyen_min",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Retard moyen (min)"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Le retard le long du trajet",
+                "showDescription": true,
+                "description": "À partir du 2e point : au 1er, seuls les trains venus de l'étranger ont une arrivée mesurée. Le rang 20 regroupe les points suivants."
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 25,
+            "width": 6,
+            "height": 6
+          }
+        }
+      ]
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "visualizationColors": [
+        "#2a78d6",
+        "#eb6834",
+        "#1baf7a",
+        "#eda100",
+        "#e87ba4",
+        "#008300",
+        "#6250d6",
+        "#e34948"
+      ]
+    }
+  }
+}
