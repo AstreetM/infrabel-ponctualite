@@ -1,0 +1,72 @@
+# CI/CD du projet.
+#  - Tests dbt : à chaque pull request et à chaque push sur main, le gold est construit et testé sur un Spark local,
+#    avec un silver d'exemple. Pas besoin de Databricks pour cette étape.
+#  - Validation et déploiement : la CLI Databricks valide le bundle, puis le déploie sur le workspace après un push
+#    sur main. Ces deux étapes attendent que le dépôt connaisse le workspace :
+#      variable DATABRICKS_HOST          l'adresse du workspace, par exemple https://dbc-xxxx.cloud.databricks.com
+#      variable DATABRICKS_WAREHOUSE_ID  l'identifiant de l'entrepôt SQL
+#      secret   DATABRICKS_TOKEN         un jeton d'accès personnel
+name: CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Une pull request mise à jour annule son ancien passage ; un déploiement en cours, jamais.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  tests-dbt:
+    name: Tests dbt sur Spark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: ci/requirements.txt
+      - name: Installer dbt et Spark
+        run: pip install -r ci/requirements.txt
+      - name: Construire et tester le gold sur un silver d'exemple
+        env:
+          DBT_SEND_ANONYMOUS_USAGE_STATS: "false"
+        run: python ci/tester_dbt.py
+
+  bundle:
+    name: Validation du bundle
+    if: vars.DATABRICKS_HOST != ''
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      BUNDLE_VAR_warehouse_id: ${{ vars.DATABRICKS_WAREHOUSE_ID }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: databricks/setup-cli@v1.23.0
+      - run: databricks bundle validate --target prod
+
+  deploiement:
+    name: Déploiement sur Databricks
+    needs: [tests-dbt, bundle]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.DATABRICKS_HOST != ''
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      BUNDLE_VAR_warehouse_id: ${{ vars.DATABRICKS_WAREHOUSE_ID }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: databricks/setup-cli@v1.23.0
+      - run: databricks bundle deploy --target prod

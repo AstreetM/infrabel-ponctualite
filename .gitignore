@@ -5,3 +5,12 @@ __pycache__/
 spark-warehouse/
 metastore_db/
 derby.log
+
+# Bundle Databricks : l'état local de la CLI
+.databricks/
+
+# dbt
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/profiles/.user.yml

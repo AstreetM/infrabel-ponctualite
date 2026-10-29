@@ -1,0 +1,4 @@
+# Les dépendances des tests dbt dans GitHub Actions : dbt et un Spark local, sans Databricks.
+dbt-core==1.12.6
+dbt-spark[session]==1.11.0
+pyspark==4.2.1

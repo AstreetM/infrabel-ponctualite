@@ -1,0 +1,114 @@
+models:
+  - name: fait_passage
+    description: Un passage par ligne (un train, à un point, un jour), avec ses retards et sa place dans le trajet
+    columns:
+      - name: id_passage
+        description: Clé du passage, reprise du silver
+        data_tests:
+          - unique
+          - not_null
+      - name: date_cle
+        description: Jour de départ du train, même pour une arrivée après minuit
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_cle
+      - name: minute_cle
+        description: Minute de l'heure prévue au point, comptée depuis minuit
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_heure')
+                field: minute_cle
+      - name: ptcar_no
+        description: Numéro du point (PTCAR)
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_gare')
+                field: ptcar_no
+      - name: relation_cle
+        description: Clé de la relation et de son sens
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_relation')
+                field: relation_cle
+      - name: operateur_code
+        description: Code de l'opérateur
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_operateur')
+                field: operateur_code
+      - name: train_no
+        description: Numéro du train, gardé comme dimension dégénérée
+      - name: date_depart
+        description: Date de départ du train
+      - name: arrivee_prevue
+        description: Arrivée prévue, heure belge
+      - name: arrivee_reelle
+        description: Arrivée réelle, heure belge
+      - name: depart_prevu
+        description: Départ prévu, heure belge
+      - name: depart_reel
+        description: Départ réel, heure belge
+      - name: retard_arrivee_min
+        description: Retard en arrivant au point, en minutes
+      - name: retard_depart_min
+        description: Retard en quittant le point, en minutes
+      - name: a_l_heure
+        description: Vrai si le train arrive avec moins de 6 minutes de retard (la règle d'Infrabel), vide sans arrivée mesurée
+      - name: rang_arret
+        description: Rang du point dans le trajet du train, ce jour-là
+      - name: nb_arrets
+        description: Nombre de points du trajet
+      - name: est_origine
+        description: Vrai au premier point du trajet
+      - name: est_terminus
+        description: Vrai au dernier point du trajet, là où Infrabel mesure la ponctualité
+      - name: retard_pris_en_ligne_min
+        description: Retard gagné entre le départ du point précédent et l'arrivée à celui-ci, en minutes
+      - name: retard_pris_a_quai_min
+        description: Retard gagné pendant l'arrêt, entre l'arrivée et le départ, en minutes
+      - name: retard_incoherent
+        description: Vrai si le retard publié et les heures diffèrent de plus de 60 secondes
+
+unit_tests:
+  - name: fait_passage_suit_le_trajet_du_train
+    description: >-
+      Les trois points d'un trajet sont classés par heure prévue ; le retard pris en ligne et à quai se calcule
+      d'un point à l'autre, et l'arrivée après minuit d'un train de nuit reste sur son jour de départ.
+    model: fait_passage
+    given:
+      - input: source('silver', 'passages')
+        rows:
+          # Le trajet est volontairement donné dans le désordre.
+          - {id_passage: a3, date_depart: "2026-08-03", train_no: 101, ptcar_no: 3, relation: "IC 01", sens_relation: A, operateur: SNCB/NMBS,
+             arrivee_prevue: "2026-08-03 08:35:00", depart_prevu: null, retard_arrivee_min: 7.5, retard_depart_min: null}
+          - {id_passage: a1, date_depart: "2026-08-03", train_no: 101, ptcar_no: 1, relation: "IC 01", sens_relation: A, operateur: SNCB/NMBS,
+             arrivee_prevue: null, depart_prevu: "2026-08-03 08:00:00", retard_arrivee_min: null, retard_depart_min: 1.0}
+          - {id_passage: a2, date_depart: "2026-08-03", train_no: 101, ptcar_no: 2, relation: "IC 01", sens_relation: A, operateur: SNCB/NMBS,
+             arrivee_prevue: "2026-08-03 08:20:00", depart_prevu: "2026-08-03 08:22:00", retard_arrivee_min: 3.0, retard_depart_min: 4.0}
+          - {id_passage: n1, date_depart: "2026-08-03", train_no: 202, ptcar_no: 1, relation: "L 05", sens_relation: B, operateur: SNCB/NMBS,
+             arrivee_prevue: null, depart_prevu: "2026-08-03 23:50:00", retard_arrivee_min: null, retard_depart_min: 0.0}
+          - {id_passage: n2, date_depart: "2026-08-03", train_no: 202, ptcar_no: 2, relation: "L 05", sens_relation: B, operateur: SNCB/NMBS,
+             arrivee_prevue: "2026-08-04 00:10:00", depart_prevu: null, retard_arrivee_min: 2.0, retard_depart_min: null}
+    expect:
+      rows:
+        - {id_passage: a1, date_cle: 20260803, minute_cle: 480, rang_arret: 1, nb_arrets: 3, est_origine: true, est_terminus: false,
+           a_l_heure: null, retard_pris_en_ligne_min: null, retard_pris_a_quai_min: null}
+        - {id_passage: a2, date_cle: 20260803, minute_cle: 500, rang_arret: 2, nb_arrets: 3, est_origine: false, est_terminus: false,
+           a_l_heure: true, retard_pris_en_ligne_min: 2.0, retard_pris_a_quai_min: 1.0}
+        - {id_passage: a3, date_cle: 20260803, minute_cle: 515, rang_arret: 3, nb_arrets: 3, est_origine: false, est_terminus: true,
+           a_l_heure: false, retard_pris_en_ligne_min: 3.5, retard_pris_a_quai_min: null}
+        - {id_passage: n1, date_cle: 20260803, minute_cle: 1430, rang_arret: 1, nb_arrets: 2, est_origine: true, est_terminus: false,
+           a_l_heure: null, retard_pris_en_ligne_min: null, retard_pris_a_quai_min: null}
+        - {id_passage: n2, date_cle: 20260803, minute_cle: 10, rang_arret: 2, nb_arrets: 2, est_origine: false, est_terminus: true,
+           a_l_heure: true, retard_pris_en_ligne_min: 2.0, retard_pris_a_quai_min: null}
