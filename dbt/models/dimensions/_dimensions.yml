@@ -1,0 +1,147 @@
+models:
+  - name: dim_date
+    description: Un jour par ligne sur la période du silver, avec les jours fériés belges
+    columns:
+      - name: date_cle
+        description: Clé du jour, au format aaaammjj
+        data_tests:
+          - unique
+          - not_null
+      - name: date_jour
+        description: Le jour
+      - name: annee
+        description: Année
+      - name: mois
+        description: Numéro du mois, de 1 à 12
+      - name: nom_mois
+        description: Nom du mois, en français
+      - name: annee_mois
+        description: Année et mois, au format aaaa-mm
+      - name: jour
+        description: Jour du mois
+      - name: jour_semaine
+        description: Jour de la semaine, de 1 (lundi) à 7 (dimanche)
+      - name: nom_jour
+        description: Nom du jour, en français
+      - name: est_weekend
+        description: Vrai le samedi et le dimanche
+      - name: est_ferie
+        description: Vrai un jour férié légal
+      - name: nom_ferie
+        description: Nom du jour férié, vide les autres jours
+      - name: type_jour
+        description: Jour ouvrable, ou week-end et férié
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["jour ouvrable", "week-end ou férié"]
+
+  - name: dim_heure
+    description: Une minute de la journée par ligne, avec sa tranche horaire
+    columns:
+      - name: minute_cle
+        description: Clé de la minute, comptée depuis minuit (de 0 à 1 439)
+        data_tests:
+          - unique
+          - not_null
+      - name: heure
+        description: Heure, de 0 à 23
+      - name: minute
+        description: Minute dans l'heure, de 0 à 59
+      - name: heure_minute
+        description: Heure lisible, au format hh:mm
+      - name: tranche
+        description: Tranche horaire
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["nuit et petit matin", "pointe du matin", "journée", "pointe du soir", "soirée"]
+      - name: ordre_tranche
+        description: Ordre de la tranche dans la journée, pour trier les graphiques
+      - name: est_pointe
+        description: Vrai aux heures de pointe, de 7 h à 9 h et de 16 h à 19 h
+
+  - name: dim_gare
+    description: Un point du réseau par ligne, qu'il s'agisse d'une gare, d'une halte ou d'un simple point de passage
+    columns:
+      - name: ptcar_no
+        description: Numéro du point (PTCAR)
+        data_tests:
+          - unique
+          - not_null
+      - name: nom_nl
+        description: Nom du point, en néerlandais comme dans la source
+      - name: est_jonction_nord_midi
+        description: Vrai pour les cinq points de la jonction Nord-Midi, à Bruxelles
+
+  - name: dim_relation
+    description: Une relation commerciale et son sens par ligne, avec le type de train
+    columns:
+      - name: relation_cle
+        description: Empreinte SHA-256 de la relation et de son sens
+        data_tests:
+          - unique
+          - not_null
+      - name: relation
+        description: Relation commerciale, par exemple IC 01
+      - name: sens_relation
+        description: Sens de la relation
+      - name: code_type
+        description: Lettres au début de la relation (IC, L, S, P, EURST…)
+      - name: type_train
+        description: Type de train déduit du code
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["InterCity", "Omnibus", "Train S", "Train de pointe", "Train supplémentaire",
+                         "Train affrété", "International", "Autre"]
+
+  - name: dim_operateur
+    description: Un opérateur ferroviaire par ligne
+    columns:
+      - name: operateur_code
+        description: Code de l'opérateur dans la source
+        data_tests:
+          - unique
+          - not_null
+      - name: operateur_nom
+        description: Nom lisible de l'opérateur
+
+unit_tests:
+  - name: dim_date_marque_les_week_ends_et_les_feries
+    description: Le 15 août 2026 est un samedi férié, le 17 un lundi ordinaire, et aucun jour ne manque entre les deux bornes.
+    model: dim_date
+    given:
+      - input: source('silver', 'passages')
+        rows:
+          - {date_depart: "2026-08-14"}
+          - {date_depart: "2026-08-17"}
+      - input: ref('jours_feries')
+        rows:
+          - {date_ferie: "2026-08-15", nom_ferie: "Assomption"}
+    expect:
+      rows:
+        - {date_cle: 20260814, nom_jour: vendredi, nom_mois: août, est_ferie: false, nom_ferie: null, type_jour: jour ouvrable}
+        - {date_cle: 20260815, nom_jour: samedi, nom_mois: août, est_ferie: true, nom_ferie: Assomption, type_jour: week-end ou férié}
+        - {date_cle: 20260816, nom_jour: dimanche, nom_mois: août, est_ferie: false, nom_ferie: null, type_jour: week-end ou férié}
+        - {date_cle: 20260817, nom_jour: lundi, nom_mois: août, est_ferie: false, nom_ferie: null, type_jour: jour ouvrable}
+
+  - name: dim_relation_deduit_le_type_de_train
+    description: EURST (l'Eurostar, ex-Thalys) est un train international, et un code inconnu tombe dans « Autre ».
+    model: dim_relation
+    given:
+      - input: source('silver', 'passages')
+        rows:
+          - {relation: "IC 01", sens_relation: "A"}
+          - {relation: "IC 01", sens_relation: "A"}
+          - {relation: "L 05", sens_relation: "B"}
+          - {relation: "S1", sens_relation: "A"}
+          - {relation: "EURST", sens_relation: "A"}
+          - {relation: "XYZ 9", sens_relation: "A"}
+    expect:
+      rows:
+        - {relation: "IC 01", code_type: IC, type_train: InterCity}
+        - {relation: "L 05", code_type: L, type_train: Omnibus}
+        - {relation: "S1", code_type: S, type_train: Train S}
+        - {relation: "EURST", code_type: EURST, type_train: International}
+        - {relation: "XYZ 9", code_type: XYZ, type_train: Autre}

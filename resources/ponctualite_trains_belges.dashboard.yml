@@ -1,0 +1,7 @@
+# Le tableau de bord AI/BI, déployé à partir de son export. Il lit les vues de <catalogue>.gold.
+resources:
+  dashboards:
+    tableau_de_bord:
+      display_name: Ponctualité des trains belges
+      file_path: ../dashboard/ponctualite_trains_belges.lvdash.json
+      warehouse_id: ${var.warehouse_id}

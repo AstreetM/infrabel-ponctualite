@@ -1,0 +1,41 @@
+# La couche gold du projet, en dbt : le schéma en étoile, les vues du tableau de bord et leurs tests.
+# Sur Databricks, la tâche dbt du job lance `dbt build` sur l'entrepôt SQL, dans workspace.gold.
+# En local et dans GitHub Actions, le même projet tourne sur un Spark local (profil spark_local).
+name: ponctualite
+version: "1.0.0"
+config-version: 2
+profile: ponctualite
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+clean-targets: ["target", "dbt_packages", "logs"]
+
+models:
+  ponctualite:
+    # Les descriptions des fichiers YAML deviennent les commentaires des tables et des colonnes dans Unity Catalog.
+    +persist_docs:
+      relation: true
+      columns: true
+    dimensions:
+      +materialized: table
+    faits:
+      +materialized: table
+    vues:
+      +materialized: view
+      # Pour les vues, seule la description de la vue devient un commentaire.
+      +persist_docs:
+        relation: true
+        columns: false
+
+seeds:
+  ponctualite:
+    +persist_docs:
+      relation: true
+      columns: true
+    jours_feries:
+      +column_types:
+        date_ferie: date
+        nom_ferie: string

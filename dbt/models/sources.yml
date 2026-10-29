@@ -1,0 +1,27 @@
+sources:
+  - name: silver
+    description: Les passages nettoyés et typés par le notebook 03_silver, en PySpark.
+    schema: silver
+    tables:
+      - name: passages
+        description: >-
+          Un passage par train, par jour, par point d'arrêt et par horaire prévu. Les heures sont des
+          heures belges, lues sans conversion de fuseau.
+        columns:
+          - name: id_passage
+            description: Empreinte SHA-256 de la date, du train, du point et des heures prévues
+            data_tests:
+              - unique
+              - not_null
+          - name: date_depart
+            description: Date de départ du train
+            data_tests:
+              - not_null
+          - name: train_no
+            description: Numéro du train
+            data_tests:
+              - not_null
+          - name: ptcar_no
+            description: Numéro du point du réseau (PTCAR)
+            data_tests:
+              - not_null

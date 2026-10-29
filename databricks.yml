@@ -1,0 +1,30 @@
+# Le projet décrit comme du code (Declarative Automation Bundles, anciennement Databricks Asset Bundles) :
+# le job, le tableau de bord et leurs réglages. `databricks bundle deploy` les crée ou les met à jour dans le
+# workspace ; GitHub Actions s'en charge à chaque push sur main (voir .github/workflows/ci-cd.yml).
+bundle:
+  name: ponctualite_trains_belges
+
+include:
+  - resources/*.yml
+
+variables:
+  warehouse_id:
+    description: Identifiant de l'entrepôt SQL qui exécute dbt et le tableau de bord
+  catalog:
+    description: Catalogue Unity Catalog du projet
+    default: workspace
+
+# Seuls les fichiers utiles au job partent dans le workspace.
+sync:
+  exclude:
+    - docs/**
+    - ci/**
+    - .github/**
+
+targets:
+  prod:
+    mode: production
+    default: true
+    workspace:
+      # L'adresse du workspace vient de la variable d'environnement DATABRICKS_HOST.
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}

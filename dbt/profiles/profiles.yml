@@ -1,0 +1,26 @@
+# Profils pour lancer dbt hors du job Databricks. Dans le job, la tâche dbt génère elle-même son profil
+# à partir de l'entrepôt SQL, du catalogue et du schéma qu'on lui donne : ce fichier ne lui sert pas.
+#
+#   dbt build --profiles-dir profiles                     -> Spark local, sur des données d'exemple (tests, CI)
+#   dbt build --profiles-dir profiles --target databricks -> l'entrepôt SQL du workspace, depuis un poste
+ponctualite:
+  target: spark_local
+  outputs:
+    spark_local:
+      type: spark
+      method: session
+      host: NA
+      schema: gold
+      threads: 1
+      server_side_parameters:
+        spark.sql.session.timeZone: UTC
+        spark.sql.ansi.enabled: "true"
+
+    databricks:
+      type: databricks
+      host: "{{ env_var('DATABRICKS_HOST', 'https://exemple.cloud.databricks.com') | replace('https://', '') }}"
+      http_path: "/sql/1.0/warehouses/{{ env_var('DATABRICKS_WAREHOUSE_ID', 'a-renseigner') }}"
+      token: "{{ env_var('DATABRICKS_TOKEN', '') }}"
+      catalog: workspace
+      schema: gold
+      threads: 4

@@ -1,0 +1,112 @@
+# Une vue par question du projet. Les vues font les jointures avec les dimensions :
+# le tableau de bord n'a plus qu'à choisir ses colonnes.
+models:
+  - name: v_ponctualite_mois
+    description: "Question 1 : ponctualité au terminus par mois"
+    columns:
+      - name: annee_mois
+        description: Année et mois, au format aaaa-mm
+        data_tests:
+          - unique
+          - not_null
+      - name: trains
+        description: Trains arrivés à leur terminus avec une arrivée mesurée
+      - name: pct_a_l_heure
+        description: Part des trains arrivés avec moins de 6 minutes de retard, en %
+      - name: retard_moyen_min
+        description: Retard moyen au terminus, en minutes
+
+  - name: v_ponctualite_jour
+    description: "Question 1 : ponctualité au terminus par jour"
+    columns:
+      - name: date_jour
+        description: Le jour
+        data_tests:
+          - unique
+          - not_null
+      - name: pct_a_l_heure
+        description: Part des trains arrivés avec moins de 6 minutes de retard, en %
+
+  - name: v_ponctualite_gare
+    description: "Question 2 : ponctualité en arrivant à chaque point du réseau"
+    columns:
+      - name: ptcar_no
+        description: Numéro du point (PTCAR)
+        data_tests:
+          - unique
+          - not_null
+      - name: retard_median_min
+        description: Retard médian en arrivant, en minutes ; il résiste mieux que la moyenne aux retards de plusieurs heures
+
+  - name: v_ponctualite_relation
+    description: "Question 2 : ponctualité au terminus par relation et par type de train"
+    columns:
+      - name: type_train
+        description: Type de train déduit du code de la relation
+
+  - name: v_ponctualite_heure
+    description: "Question 3 : ponctualité en arrivant, par heure prévue et type de jour"
+    columns:
+      - name: heure
+        description: Heure prévue d'arrivée, de 0 à 23
+      - name: type_jour
+        description: Jour ouvrable, ou week-end et férié
+
+  - name: v_propagation
+    description: "Question 4 : retard moyen et retard pris en route selon le rang du point dans le trajet, à partir du 2e point"
+    columns:
+      - name: rang_arret
+        description: Rang du point dans le trajet ; le 20e regroupe les suivants
+        data_tests:
+          - unique
+          - not_null
+
+  - name: v_jonction_nord_midi
+    description: "Question 5 : retard pris en route sur la jonction Nord-Midi et sur le reste du réseau"
+    columns:
+      - name: zone
+        description: La jonction Nord-Midi ou le reste du réseau
+        data_tests:
+          - unique
+          - accepted_values:
+              arguments:
+                values: ["jonction Nord-Midi", "reste du réseau"]
+
+unit_tests:
+  - name: v_propagation_laisse_le_premier_point_dehors
+    description: >-
+      Une arrivée mesurée au 1er point vient d'un train entré depuis l'étranger : elle reste hors de la courbe.
+      Au-delà du 20e point, les arrêts sont regroupés au 20e.
+    model: v_propagation
+    given:
+      - input: ref('fait_passage')
+        rows:
+          - {rang_arret: 1, retard_arrivee_min: 30.0, retard_pris_en_ligne_min: null, retard_pris_a_quai_min: 0.0}
+          - {rang_arret: 2, retard_arrivee_min: 2.0, retard_pris_en_ligne_min: 1.0, retard_pris_a_quai_min: 0.5}
+          - {rang_arret: 2, retard_arrivee_min: 4.0, retard_pris_en_ligne_min: 3.0, retard_pris_a_quai_min: 1.5}
+          - {rang_arret: 3, retard_arrivee_min: null, retard_pris_en_ligne_min: null, retard_pris_a_quai_min: null}
+          - {rang_arret: 21, retard_arrivee_min: 9.0, retard_pris_en_ligne_min: 1.0, retard_pris_a_quai_min: 0.0}
+          - {rang_arret: 25, retard_arrivee_min: 11.0, retard_pris_en_ligne_min: 2.0, retard_pris_a_quai_min: 1.0}
+    expect:
+      rows:
+        - {rang_arret: 2, arrivees: 2, retard_moyen_min: 3.0, retard_pris_en_ligne_min: 2.0, retard_pris_a_quai_min: 1.0}
+        - {rang_arret: 20, arrivees: 2, retard_moyen_min: 10.0, retard_pris_en_ligne_min: 1.5, retard_pris_a_quai_min: 0.5}
+
+  - name: v_jonction_nord_midi_compare_les_deux_zones
+    description: Les arrivées sur la jonction Nord-Midi sont comparées à celles du reste du réseau.
+    model: v_jonction_nord_midi
+    given:
+      - input: ref('fait_passage')
+        rows:
+          - {ptcar_no: 1, retard_arrivee_min: 7.0, a_l_heure: false, retard_pris_en_ligne_min: 2.0, retard_pris_a_quai_min: 0.5}
+          - {ptcar_no: 1, retard_arrivee_min: 1.0, a_l_heure: true, retard_pris_en_ligne_min: 0.0, retard_pris_a_quai_min: 0.0}
+          - {ptcar_no: 2, retard_arrivee_min: 2.0, a_l_heure: true, retard_pris_en_ligne_min: -1.0, retard_pris_a_quai_min: 0.25}
+          - {ptcar_no: 2, retard_arrivee_min: null, a_l_heure: null, retard_pris_en_ligne_min: null, retard_pris_a_quai_min: null}
+      - input: ref('dim_gare')
+        rows:
+          - {ptcar_no: 1, nom_nl: BRUSSEL-ZUID, est_jonction_nord_midi: true}
+          - {ptcar_no: 2, nom_nl: LIEGE-GUILLEMINS, est_jonction_nord_midi: false}
+    expect:
+      rows:
+        - {zone: jonction Nord-Midi, arrivees: 2, pct_a_l_heure: 50.0, retard_pris_en_ligne_min: 1.0, retard_pris_a_quai_min: 0.25}
+        - {zone: reste du réseau, arrivees: 1, pct_a_l_heure: 100.0, retard_pris_en_ligne_min: -1.0, retard_pris_a_quai_min: 0.25}

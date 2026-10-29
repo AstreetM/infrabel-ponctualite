@@ -1,0 +1,16 @@
+seeds:
+  - name: jours_feries
+    description: >-
+      Les jours fériés légaux en Belgique, en 2025 et 2026. La dimension des dates s'en sert pour
+      distinguer les jours ouvrables des week-ends et fériés. Pour couvrir une autre année, il suffit
+      d'ajouter des lignes à ce fichier.
+    columns:
+      - name: date_ferie
+        description: Date du jour férié
+        data_tests:
+          - unique
+          - not_null
+      - name: nom_ferie
+        description: Nom du jour férié
+        data_tests:
+          - not_null
