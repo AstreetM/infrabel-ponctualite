@@ -79,7 +79,6 @@
     {
       "name": "p1a00001",
       "displayName": "Ponctualité",
-      "pageType": "PAGE_TYPE_CANVAS",
       "layout": [
         {
           "widget": {
@@ -87,8 +86,7 @@
             "multilineTextboxSpec": {
               "lines": [
                 "# La ponctualité des trains belges\n",
-                "Août et septembre 2026, à partir des données brutes d'Infrabel traitées dans Databricks (bronze, silver, gold). ",
-                "Un train est à l'heure s'il arrive avec moins de 6 minutes de retard, la règle d'Infrabel."
+                "Août et septembre 2026, à partir des données brutes d'Infrabel traitées dans Databricks (bronze, silver, gold). Un train est à l'heure s'il arrive avec moins de 6 minutes de retard, la règle d'Infrabel."
               ]
             }
           },
@@ -118,6 +116,10 @@
               }
             ],
             "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": "Trains à l'heure au terminus (%)"
+              },
               "version": 2,
               "widgetType": "counter",
               "encodings": {
@@ -126,9 +128,8 @@
                   "displayName": "% à l'heure"
                 }
               },
-              "frame": {
-                "showTitle": true,
-                "title": "Trains à l'heure au terminus (%)"
+              "data": {
+                "queryName": "main_query"
               }
             }
           },
@@ -158,6 +159,10 @@
               }
             ],
             "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": "Trains arrivés au terminus"
+              },
               "version": 2,
               "widgetType": "counter",
               "encodings": {
@@ -166,9 +171,8 @@
                   "displayName": "Trains"
                 }
               },
-              "frame": {
-                "showTitle": true,
-                "title": "Trains arrivés au terminus"
+              "data": {
+                "queryName": "main_query"
               }
             }
           },
@@ -198,6 +202,10 @@
               }
             ],
             "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": "Retard moyen au terminus (min)"
+              },
               "version": 2,
               "widgetType": "counter",
               "encodings": {
@@ -206,9 +214,8 @@
                   "displayName": "Minutes"
                 }
               },
-              "frame": {
-                "showTitle": true,
-                "title": "Retard moyen au terminus (min)"
+              "data": {
+                "queryName": "main_query"
               }
             }
           },
@@ -296,32 +303,41 @@
               }
             ],
             "spec": {
+              "frame": {
+                "showTitle": true,
+                "showDescription": true,
+                "title": {
+                  "value": "Les 15 points les moins ponctuels",
+                  "fields": []
+                },
+                "description": {
+                  "value": "Points avec au moins 500 arrivées sur la période",
+                  "fields": []
+                }
+              },
               "version": 3,
               "widgetType": "bar",
               "encodings": {
                 "x": {
                   "fieldName": "pct_a_l_heure",
+                  "displayName": "% à l'heure",
                   "scale": {
                     "type": "quantitative"
-                  },
-                  "displayName": "% à l'heure"
+                  }
                 },
                 "y": {
                   "fieldName": "nom_nl",
+                  "displayName": "Point du réseau",
                   "scale": {
                     "type": "categorical",
                     "sort": {
-                      "by": "value"
+                      "by": "x"
                     }
-                  },
-                  "displayName": "Point du réseau"
+                  }
                 }
               },
-              "frame": {
-                "showTitle": true,
-                "title": "Les 15 points les moins ponctuels",
-                "showDescription": true,
-                "description": "Points avec au moins 500 arrivées sur la période"
+              "data": {
+                "queryName": "main_query"
               }
             }
           },
@@ -417,12 +433,12 @@
                   "datasetName": "d1a00005",
                   "fields": [
                     {
-                      "name": "type_train",
-                      "expression": "`type_train`"
-                    },
-                    {
                       "name": "pct_a_l_heure",
                       "expression": "`pct_a_l_heure`"
+                    },
+                    {
+                      "name": "type_train",
+                      "expression": "`type_train`"
                     }
                   ],
                   "disaggregated": true
@@ -430,30 +446,36 @@
               }
             ],
             "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Ponctualité au terminus par type de train",
+                  "fields": []
+                }
+              },
               "version": 3,
               "widgetType": "bar",
               "encodings": {
                 "x": {
                   "fieldName": "pct_a_l_heure",
+                  "displayName": "% à l'heure",
                   "scale": {
                     "type": "quantitative"
-                  },
-                  "displayName": "% à l'heure"
+                  }
                 },
                 "y": {
                   "fieldName": "type_train",
+                  "displayName": "Type de train",
                   "scale": {
                     "type": "categorical",
                     "sort": {
-                      "by": "value"
+                      "by": "x"
                     }
-                  },
-                  "displayName": "Type de train"
+                  }
                 }
               },
-              "frame": {
-                "showTitle": true,
-                "title": "Ponctualité au terminus par type de train"
+              "data": {
+                "queryName": "main_query"
               }
             }
           },
@@ -600,7 +622,8 @@
             "height": 6
           }
         }
-      ]
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
     }
   ],
   "uiSettings": {
